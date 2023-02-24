@@ -1,5 +1,5 @@
 from rest_framework import generics
-from .models import User, Doctor, AvailableSlot, Appointment
+from .models import User, Doctor, AvailableSlot, Appointment, Patient
 from .serializers import UserSerializer, PatientSerializer, DoctorSerializer, AvailableSlotSerializer, AppointmentSerializer
 
 from django.contrib.auth import authenticate
@@ -70,6 +70,11 @@ class PatientView(APIView):
 
 class DoctorView(APIView):
     permission_classes = (AllowAny,)
+
+    def get(self, request):
+        doctors = Doctor.objects.all()
+        serializer = DoctorSerializer(doctors, many=True)
+        return Response(serializer.data)
 
     def post(self, request):
         serializer = DoctorSerializer(data=request.data)
@@ -171,9 +176,16 @@ class GetAuthUserView(APIView):
         token = request.headers.get('Authorization')
         if not token:
             return Response(data={'error':'No Token. Authorization Denied'}, status=status.HTTP_401_UNAUTHORIZED)
-        user = User.objects.get(id=request.user.id)
-        data = UserSerializer(user).data
-        return Response(data)
+        #if user is doctor or patient
+        if token[6] == 'D':
+            user = Doctor.objects.get(id=request.user.id)
+        elif token[6] == 'P':
+            user = Patient.objects.get(id=request.user.id)
+        else:
+
+            user = User.objects.get(id=request.user.id)
+            data = UserSerializer(user).data
+            return Response(data)
         
     def post(self, request):
         email = request.data.get('email')
@@ -200,7 +212,7 @@ class ProfileView(APIView):
         except ObjectDoesNotExist:
             return Response(data={'error': "No profile found"}, status=status.HTTP_404_NOT_FOUND)
 
-        data = UserSerializer(user).data
+        data = UserSerializer(profile).data
 
         return Response(data=data, status=status.HTTP_404_NOT_FOUND)
 
@@ -224,6 +236,15 @@ class AvailableSlot(APIView):
             return Response(data={'message': "Slot deleted"}, status=status.HTTP_200_OK)
         except ObjectDoesNotExist:
             return Response(data={'error': "No slot found"}, status=status.HTTP_404_NOT_FOUND)
+    
+    # getDoctorSlots
+    def get(self, request, *args, **kwargs):
+        try:
+            slots = AvailableSlot.objects.filter(doctor=request.user)
+            data = AvailableSlotSerializer(slots, many=True).data
+            return Response(data=data, status=status.HTTP_200_OK)
+        except ObjectDoesNotExist:
+            return Response(data={'error': "No slots found"}, status=status.HTTP_404_NOT_FOUND)
         
 class Appointments(APIView):
     authentication_classes = (TokenAuthentication,)
