@@ -48,7 +48,10 @@ class User(AbstractBaseUser, PermissionsMixin):
     picture = models.CharField(max_length=50, default="avatar1.jpg", unique=False)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
+    is_doctor = models.BooleanField(default=False)
+    is_patient = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']

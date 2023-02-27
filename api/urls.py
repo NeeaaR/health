@@ -1,6 +1,6 @@
 from django.urls import path
 from . import views
-from .views import RegisterView, GetAuthUserView
+from .views import GetAuthUserView
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
@@ -24,8 +24,8 @@ urlpatterns = [
     path('doctors/', views.DoctorList.as_view(), name="doctor-list"),
     path('doctors/add', views.DoctorAdd.as_view(), name="doctor-add"),
     path('doctors/<int:pk>', views.DoctorDetail.as_view(), name="doctor-detail"),
-    path('available/', views.AvailableSlot.as_view(), name="available-list"),
-    path('available/<int:id>', views.AvailableSlot.as_view(), name="available-detail"),
+    path('availables/', views.AvailableSlots.as_view(), name="available-list"),
+    path('availables/<int:id>', views.AvailableSlots.as_view(), name="available-detail"),
     path('appointments/', views.AppointmentList.as_view(), name="appointments-list"),
     path('appointments/<int:pk>', views.Appointments.as_view(), name="appointments-detail"),
     path('appointments/delete/<int:pk>', views.AppointmentDelete.as_view(), name="appointments-detail"),

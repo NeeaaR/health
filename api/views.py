@@ -101,30 +101,6 @@ class UserUpdate(generics.UpdateAPIView):
     queryset = User.objects.all()
     serializer_class = UserSerializer
 
-class RegisterView(APIView):
-    def post(self, request):
-        serializer = UserSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(serializer.data)
-
-class LoginView(APIView):
-    def post(self, request):
-        email = request.data['email']
-        password = request.data['password']
-
-        user = User.objects.filter(email=email.first())
-
-        if user is None:
-            raise AuthentificationFailed('User not found')
-
-        if not user.check_password(password):
-            raise AuthenticationFailed('Incorrect Password')
-
-        return Response({
-            'message' : 'success'
-        })
-
 class SingleProfileView(APIView):
     def get(self, request, *args, **kwargs):
         try:
@@ -193,7 +169,6 @@ class GetAuthUserView(APIView):
     def post(self, request):
         email = request.data.get('email')
         password = request.data.get('password')
-
         if email == "" or password == "":
             return Response({'error': 'Please provide both email and password'},status=status.HTTP_400_BAD_REQUEST)
         
@@ -206,23 +181,34 @@ class GetAuthUserView(APIView):
         return Response({'token': token.key}, status=status.HTTP_200_OK)
 
 class ProfileView(APIView):
-    authentication_classes = (TokenAuthentication,)
-    permission_classes = (IsAuthenticated,)
 
-    def get(self, request, user_id):
-        try:
-            profile = User.objects.get(id=user_id)
+    def get (self, request, user_id, *args, **kwargs):
 
-            if isinstance(profile, Doctor):
-                profile = Doctor.objects.get(id=user_id)
-            elif isinstance(profile, Patient):
-                profile = Patient.objects.get(id=user_id)
-            else:
-                profile = User.objects.get(id=user_id)
-        except ObjectDoesNotExist:
+        user = User.objects.get(id=user_id)
+        print(user)
+        if user.is_doctor:
+            profile = Doctor.objects.get(id=user.id)
+            serializer = DoctorSerializer(profile)
+            available_slots = AvailableSlot.objects.filter(doctor=profile)
+            available_slots_serializer = AvailableSlotSerializer(available_slots, many=True)
+            appointments = Appointment.objects.filter(doctor=profile)
+            appointments_serializer = AppointmentSerializer(appointments, many=True)
+            data = {
+                'profile' : serializer.data,
+                'appointments' : appointments_serializer.data,
+                'available_slots' : available_slots_serializer.data
+            }
+        elif user.is_patient:
+            profile = Patient.objects.get(id=user.id)
+            serializer = PatientSerializer(profile)
+            appointments = Appointment.objects.filter(patient=profile)
+            appointments_serializer = AppointmentSerializer(appointments, many=True)
+            data = {
+                'profile' : serializer.data,
+                'appointments' : appointments_serializer.data
+            }
+        else:
             return Response(data={'error': "No profile found"}, status=status.HTTP_404_NOT_FOUND)
-
-        data = UserSerializer(profile).data
 
         return Response(data=data, status=status.HTTP_200_OK)
 
@@ -236,10 +222,17 @@ class SingleUserView(APIView):
         except ObjectDoesNotExist:
             return Response(data={'error': "No user found"}, status=status.HTTP_404_NOT_FOUND)
 
-
-class AvailableSlot(APIView):
+class AvailableSlots(APIView):
     authentication_classes = (TokenAuthentication,)
     permission_classes = (IsAuthenticated,)
+    
+    def get(self, request, *args, **kwargs):
+        try:
+            slots = AvailableSlot.objects.filter(doctor=request.user)
+            data = AvailableSlotSerializer(slots, many=True).data
+            return Response(data=data, status=status.HTTP_200_OK)
+        except ObjectDoesNotExist:
+            return Response(data={'error': "No slots found"}, status=status.HTTP_404_NOT_FOUND)
 
     def post(self, request):
         serializer = AvailableSlotSerializer(data=request.data)
