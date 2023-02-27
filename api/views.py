@@ -2,6 +2,7 @@ from rest_framework import generics
 from .models import User, Doctor, AvailableSlot, Appointment, Patient
 from .serializers import UserSerializer, PatientSerializer, DoctorSerializer, AvailableSlotSerializer, AppointmentSerializer
 
+from django.contrib.auth.hashers import make_password
 from django.contrib.auth import authenticate
 from django.shortcuts import render
 from django.http import HttpResponse,JsonResponse
@@ -61,8 +62,9 @@ class PatientView(APIView):
     def post(self, request):
         serializer = PatientSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
             patient = serializer.save()
+            patient.password = make_password(patient.password)
+            patient.save()
             token = Token.objects.get_or_create(user=patient)
             return Response(data={'token': token[0].key}, status=status.HTTP_201_CREATED)
         else:
@@ -79,8 +81,9 @@ class DoctorView(APIView):
     def post(self, request):
         serializer = DoctorSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
             doctor = serializer.save()
+            doctor.password = make_password(doctor.password)
+            doctor.save()
             token = Token.objects.get_or_create(user=doctor)
             return Response(data={'token': token[0].key}, status=status.HTTP_201_CREATED)
         else:
@@ -206,15 +209,32 @@ class ProfileView(APIView):
     authentication_classes = (TokenAuthentication,)
     permission_classes = (IsAuthenticated,)
 
-    def get(self, request, *args, **kwargs):
+    def get(self, request, user_id):
         try:
-            profile = request.user
+            profile = User.objects.get(id=user_id)
+
+            if isinstance(profile, Doctor):
+                profile = Doctor.objects.get(id=user_id)
+            elif isinstance(profile, Patient):
+                profile = Patient.objects.get(id=user_id)
+            else:
+                profile = User.objects.get(id=user_id)
         except ObjectDoesNotExist:
             return Response(data={'error': "No profile found"}, status=status.HTTP_404_NOT_FOUND)
 
         data = UserSerializer(profile).data
 
-        return Response(data=data, status=status.HTTP_404_NOT_FOUND)
+        return Response(data=data, status=status.HTTP_200_OK)
+
+class SingleUserView(APIView):
+
+    def get(self, request, *args, **kwargs):
+        try:
+            user = User.objects.get(id=kwargs.get('pk'))
+            data = UserSerializer(user).data
+            return Response(data=data, status=status.HTTP_200_OK)
+        except ObjectDoesNotExist:
+            return Response(data={'error': "No user found"}, status=status.HTTP_404_NOT_FOUND)
 
 
 class AvailableSlot(APIView):
