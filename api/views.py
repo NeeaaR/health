@@ -234,12 +234,15 @@ class AvailableSlots(APIView):
         except ObjectDoesNotExist:
             return Response(data={'error': "No slots found"}, status=status.HTTP_404_NOT_FOUND)
 
-    def post(self, request):
+    def post(self, request, *args, **kwargs):
+        user = request.user
         serializer = AvailableSlotSerializer(data=request.data)
+
         if serializer.is_valid():
             serializer.save()
             return Response(data=serializer.data, status=status.HTTP_201_CREATED)
         else:
+            print(serializer.errors)
             return Response(data=serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
     def delete(self, request, *args, **kwargs):
@@ -249,15 +252,6 @@ class AvailableSlots(APIView):
             return Response(data={'message': "Slot deleted"}, status=status.HTTP_200_OK)
         except ObjectDoesNotExist:
             return Response(data={'error': "No slot found"}, status=status.HTTP_404_NOT_FOUND)
-    
-    # getDoctorSlots
-    def get(self, request, *args, **kwargs):
-        try:
-            slots = AvailableSlot.objects.filter(doctor=request.user)
-            data = AvailableSlotSerializer(slots, many=True).data
-            return Response(data=data, status=status.HTTP_200_OK)
-        except ObjectDoesNotExist:
-            return Response(data={'error': "No slots found"}, status=status.HTTP_404_NOT_FOUND)
         
 class Appointments(APIView):
     authentication_classes = (TokenAuthentication,)

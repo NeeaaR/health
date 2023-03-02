@@ -49,17 +49,21 @@ class GetProfileSerializer(serializers.ModelSerializer):
         fields = ('id', 'first_name', 'last_name', 'email', 'phone', 'address', 'city', 'state', 'country', 'postal_code', 'is_doctor', 'is_patient')
 
 class AvailableSlotSerializer(serializers.ModelSerializer):
-    doctor = DoctorSerializer()
-    
     class Meta:
         model = AvailableSlot
-        fields = '__all__'
+        fields = ('id', 'doctor', 'date', 'time')
 
     def create(self, validated_data):
-        doctor_data = validated_data.pop('doctor')
-        doctor = Doctor.objects.get(id=doctor_data['id'])
-        available_slot = AvailableSlot.objects.create(doctor=doctor, **validated_data)
-        return available_slot
+        slot = AvailableSlot.objects.create(**validated_data)
+        return slot
+
+    def update(self, instance, validated_data):
+        instance.user = validated_data.get('user', instance.user)
+        instance.doctor = validated_data.get('doctor', instance.doctor)
+        instance.date = validated_data.get('date', instance.date)
+        instance.heure = validated_data.get('heure', instance.heure)
+        instance.save()
+        return instance
 
 class AppointmentSerializer(serializers.ModelSerializer):
     patient = PatientSerializer()
