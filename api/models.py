@@ -1,8 +1,11 @@
 import datetime
 from django.db import models
 from django.contrib.auth.models import (
-    AbstractBaseUser,BaseUserManager, PermissionsMixin
+    AbstractBaseUser, BaseUserManager, PermissionsMixin
 )
+from django.utils import timezone
+from django.core.validators import RegexValidator
+
 
 class UserManager(BaseUserManager):
 
@@ -37,15 +40,35 @@ class UserManager(BaseUserManager):
 
         return user
 
+
 class User(AbstractBaseUser, PermissionsMixin):
     username = models.CharField(db_index=True, max_length=255, unique=True)
-    email = models.EmailField(db_index=True, unique=True,  null=True, blank=True)
+    email = models.EmailField(
+        db_index=True, unique=True,  null=True, blank=True)
     first_name = models.CharField(max_length=100, default="", unique=False)
     last_name = models.CharField(max_length=100, default="", unique=False)
     gender = models.CharField(max_length=100, default="", unique=False)
     age = models.CharField(max_length=100, default="", unique=False)
-    health_card_number = models.CharField(max_length=13, default="1111111121", unique=True)
-    picture = models.CharField(max_length=50, default="avatar1.jpg", unique=False)
+    health_card_number = models.CharField(
+        max_length=15,
+        validators=[RegexValidator(
+            regex=r'^[1-3]\d{14}$',
+            message='Entrer un numéro de carte de sécurité sociale valide',
+        )]
+    )
+    picture = models.CharField(
+        max_length=50, default="avatar1.jpg", unique=False)
+    zip_code = models.CharField(max_length=10, validators=[RegexValidator(
+        regex=r'^\d{5}$', message='Enter a valid French postal code',)])
+    city = models.CharField(max_length=100, default="", unique=False)
+    address = models.CharField(max_length=100, default="", unique=False)
+    phone_number = models.CharField(
+        max_length=20,
+        validators=[RegexValidator(
+            regex=r'^\+33\s?(0|\(0\))\s?[1-9](?:[\s.-]?[0-9]{2}){4}$',
+            message='Entrer un numéro de téléphone valide',
+        )]
+    )
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     is_doctor = models.BooleanField(default=False)
@@ -61,11 +84,14 @@ class User(AbstractBaseUser, PermissionsMixin):
     def __str__(self):
         return f"{self.email}"
 
+
 class Doctor(User):
     speciality = models.CharField(max_length=30, default="", unique=False)
 
+
 class Patient(User):
     balance = models.FloatField(default=0, unique=False)
+
 
 class Visit(models.Model):
     date = models.DateTimeField()
@@ -76,6 +102,7 @@ class Visit(models.Model):
     def __unicode__(self):
         return '%s by  %s' % (self.patient, self.doctor)
 
+
 class Medicament(models.Model):
     name = models.CharField(max_length=150)
     description = models.CharField(max_length=500)
@@ -83,6 +110,7 @@ class Medicament(models.Model):
 
     def __unicode__(self):
         return self.name
+
 
 class Prescription(models.Model):
     visit = models.ForeignKey(Visit, on_delete=models.CASCADE)
@@ -99,13 +127,35 @@ class Prescription(models.Model):
     def doctor(self):
         return self.visit.patient
 
+
 class AvailableSlot(models.Model):
-    doctor = models.ForeignKey(Doctor, on_delete=models.CASCADE, related_name="available_doctor")
+    doctor = models.ForeignKey(
+        Doctor, on_delete=models.CASCADE, related_name="available_doctor")
     date = models.DateField()
     time = models.TimeField()
+    is_blocked = models.BooleanField(default=False)
+
 
 class Appointment(models.Model):
-    patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='appointments_user')
-    doctor = models.ForeignKey(Doctor, on_delete=models.CASCADE, related_name="appointments_doctor")
-    available_slot = models.ForeignKey(AvailableSlot, on_delete=models.CASCADE, related_name="available_slot")
+    patient = models.ForeignKey(
+        Patient, on_delete=models.CASCADE, related_name='appointments_user')
+    doctor = models.ForeignKey(
+        Doctor, on_delete=models.CASCADE, related_name="appointments_doctor")
+    available_slot = models.ForeignKey(
+        AvailableSlot, on_delete=models.CASCADE, related_name="available_slot")
 
+
+class Article(models.Model):
+    title = models.CharField(max_length=200)
+    author = models.ForeignKey(User, on_delete=models.CASCADE)
+    content = models.TextField()
+    created_date = models.DateTimeField(default=timezone.now)
+    published_date = models.DateTimeField(blank=True, null=True)
+    image = models.CharField(max_length=500, default="", unique=False)
+
+    def publish(self):
+        self.published_date = timezone.now()
+        self.save()
+
+    def __str__(self):
+        return self.title

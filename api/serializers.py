@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, Doctor, AvailableSlot, Appointment, Patient
+from .models import User, Doctor, AvailableSlot, Appointment, Patient, Article, Visit, Medicament, Prescription
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -80,3 +80,17 @@ class AppointmentSerializer(serializers.ModelSerializer):
         appointment = Appointment.objects.create(patient=patient, doctor=doctor, **validated_data)
         return appointment
     
+class ArticleSerializer(serializers.ModelSerializer):
+    author = UserSerializer()
+    class Meta:
+        model = Article
+        fields = '__all__'
+
+    def create(self, validated_data):
+        article = Article.objects.create(**validated_data)
+        return article
+
+    def update(self, instance, validated_data):
+        instance.title = validated_data.get('title', instance.title)
+        instance.save()
+        return instance

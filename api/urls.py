@@ -1,6 +1,6 @@
 from django.urls import path
 from . import views
-from .views import GetAuthUserView
+from .views import GetAuthUserView, ReservedSlotIds
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
@@ -21,12 +21,16 @@ urlpatterns = [
     path('users/<int:pk>/', views.SingleUserView.as_view(), name='user-detail'),
     path('users/update/<int:pk>/', views.UserUpdate.as_view(), name='user-update'),
     path('users/delete/<int:pk>/', views.UserDelete.as_view(), name='user-delete'),
-    path('doctors/', views.DoctorList.as_view(), name="doctor-list"),
-    path('doctors/add', views.DoctorAdd.as_view(), name="doctor-add"),
+    path('doctors/', views.Doctors.as_view(), name="doctor-list"),
+    path('doctors/<int:doctor_id>/reserved-slots/', ReservedSlotIds.as_view()),
     path('doctors/<int:pk>', views.DoctorDetail.as_view(), name="doctor-detail"),
     path('availables/', views.AvailableSlots.as_view(), name="available-list"),
     path('availables/<int:id>', views.AvailableSlots.as_view(), name="available-detail"),
     path('appointments/', views.AppointmentList.as_view(), name="appointments-list"),
     path('appointments/<int:pk>', views.Appointments.as_view(), name="appointments-detail"),
     path('appointments/delete/<int:pk>', views.AppointmentDelete.as_view(), name="appointments-detail"),
+    path('articles/', views.Articles.as_view(), name="article"),
+    path('articles/<int:id>', views.Articles.as_view(), name="article"),
+    path('articles_list/', views.ArticlesList.as_view(), name="article"),
+
 ]

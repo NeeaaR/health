@@ -1,6 +1,6 @@
 from rest_framework import generics
-from .models import User, Doctor, AvailableSlot, Appointment, Patient
-from .serializers import UserSerializer, PatientSerializer, DoctorSerializer, AvailableSlotSerializer, AppointmentSerializer
+from .models import User, Doctor, AvailableSlot, Appointment, Patient, Article, Visit, Medicament, Prescription
+from .serializers import UserSerializer, PatientSerializer, DoctorSerializer, AvailableSlotSerializer, AppointmentSerializer, ArticleSerializer, GetProfileSerializer
 
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth import authenticate
@@ -110,6 +110,18 @@ class SingleProfileView(APIView):
             
         except ObjectDoesNotExist:
             return Response(data={'error': "No profile found"}, status=status.HTTP_404_NOT_FOUND)
+
+class Doctors(APIView):
+
+    def get(self, request):
+        try:
+            doctors = Doctor.objects.all()
+            serializer = DoctorSerializer(doctors, many=True)
+            return Response(serializer.data)
+        
+        except ObjectDoesNotExist:
+            return Response(data={'error': "No doctors found"}, status=status.HTTP_404_NOT_FOUND)
+        
 
 class UserDelete(generics.DestroyAPIView):
     queryset = User.objects.all()
@@ -252,7 +264,17 @@ class AvailableSlots(APIView):
             return Response(data={'message': "Slot deleted"}, status=status.HTTP_200_OK)
         except ObjectDoesNotExist:
             return Response(data={'error': "No slot found"}, status=status.HTTP_404_NOT_FOUND)
-        
+
+class ReservedSlotIds(APIView):
+    def get(self, request, doctor_id):
+        # Récupérer les rendez-vous réservés pour un médecin spécifique
+        appointments = Appointment.objects.filter(doctor_id=doctor_id)
+
+        # Obtenir les identifiants des créneaux réservés
+        reserved_slot_ids = [appointment.available_slot_id for appointment in appointments]
+
+        return Response(reserved_slot_ids, status=status.HTTP_200_OK)
+
 class Appointments(APIView):
     authentication_classes = (TokenAuthentication,)
     permission_classes = (IsAuthenticated,)
@@ -265,11 +287,33 @@ class Appointments(APIView):
         except ObjectDoesNotExist:
             return Response(data={'error': "No appointments found"}, status=status.HTTP_404_NOT_FOUND)
 
-    def post(self, request): 
+    def post(self, request):
+        doctor_id = request.data.get('doctor_id')
+        user_id = request.data.get('user_id')
+        slot_id = request.data.get('slot_id')
+
+        # Vérifier que les identifiants de médecin, d'utilisateur et de créneau horaire sont valides
+        try:
+            doctor = Doctor.objects.get(id=doctor_id)
+            user = User.objects.get(id=user_id)
+            slot = AvailableSlot.objects.get(id=slot_id, doctor=doctor, is_blocked=False)
+        except Doctor.DoesNotExist:
+            return Response(data={'error': 'Le médecin spécifié n\'existe pas.'}, status=status.HTTP_404_NOT_FOUND)
+        except User.DoesNotExist:
+            return Response(data={'error': 'L\'utilisateur spécifié n\'existe pas.'}, status=status.HTTP_404_NOT_FOUND)
+        except AvailableSlot.DoesNotExist:
+            return Response(data={'error': 'Le créneau horaire spécifié n\'existe pas ou est déjà réservé.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Créer un nouvel Appointment et mettre à jour l'état du créneau horaire
         serializer = AppointmentSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
-            return Response(data=serializer.data, status=status.HTTP_201_CREATED)
+            appointment = serializer.save(doctor=doctor, user=user, slot=slot)
+
+            # Mettre à jour l'état du créneau horaire
+            slot.is_blocked = True
+            slot.save()
+
+            return Response(data={'appointment_id': appointment.id}, status=status.HTTP_201_CREATED)
         else:
             return Response(data=serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -280,3 +324,55 @@ class Appointments(APIView):
             return Response(data={'message': "Appointment deleted"}, status=status.HTTP_200_OK)
         except ObjectDoesNotExist:
             return Response(data={'error': "No appointment found"}, status=status.HTTP_404_NOT_FOUND)
+
+class Articles(APIView):
+
+    def get(self, request, *args, **kwargs):
+        try:
+            article = Article.objects.get(id=kwargs.get('id'))
+            data = ArticleSerializer(article).data
+            return Response(data=data, status=status.HTTP_200_OK)
+        except ObjectDoesNotExist:
+            return Response(data={'error': "No article found"}, status=status.HTTP_404_NOT_FOUND)
+
+    def post(self, request, *args, **kwargs):
+        serializer = ArticleSerializer(data=request.data)
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response(data=serializer.data, status=status.HTTP_201_CREATED)
+        else:
+            print(serializer.errors)
+            return Response(data=serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def put(self, request, *args, **kwargs):
+        try:
+            article = Article.objects.get(id=kwargs.get('id'))
+            serializer = ArticleSerializer(article, data=request.data)
+
+            if serializer.is_valid():
+                serializer.save()
+                return Response(data=serializer.data, status=status.HTTP_200_OK)
+            else:
+                print(serializer.errors)
+                return Response(data=serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except ObjectDoesNotExist:
+            return Response(data={'error': "No article found"}, status=status.HTTP_404_NOT_FOUND)
+
+    def delete(self, request, *args, **kwargs):
+        try:
+            article = Article.objects.get(id=kwargs.get('id'))
+            article.delete()
+            return Response(data={'message': "Article deleted"}, status=status.HTTP_200_OK)
+        except ObjectDoesNotExist:
+            return Response(data={'error': "No article found"}, status=status.HTTP_404_NOT_FOUND)
+
+class ArticlesList(APIView):
+
+    def get(self, request, *args, **kwargs):
+        try:
+            articles = Article.objects.all()
+            data = ArticleSerializer(articles, many=True).data
+            return Response(data=data, status=status.HTTP_200_OK)
+        except ObjectDoesNotExist:
+            return Response(data={'error': "No articles found"}, status=status.HTTP_404_NOT_FOUND)
