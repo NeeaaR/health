@@ -63,7 +63,8 @@ class PatientView(APIView):
         serializer = PatientSerializer(data=request.data)
         if serializer.is_valid():
             patient = serializer.save()
-            patient.password = make_password(patient.password)
+            # patient.password = make_password(patient.password)
+            patient.is_patient = True
             patient.save()
             token = Token.objects.get_or_create(user=patient)
             return Response(data={'token': token[0].key}, status=status.HTTP_201_CREATED)
@@ -82,11 +83,13 @@ class DoctorView(APIView):
         serializer = DoctorSerializer(data=request.data)
         if serializer.is_valid():
             doctor = serializer.save()
-            doctor.password = make_password(doctor.password)
+            # doctor.password = make_password(doctor.password)
+            doctor.is_doctor = True
             doctor.save()
             token = Token.objects.get_or_create(user=doctor)
             return Response(data={'token': token[0].key}, status=status.HTTP_201_CREATED)
         else:
+            print(serializer.errors)
             return Response(data=serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class UserList(generics.ListAPIView):
@@ -288,34 +291,35 @@ class Appointments(APIView):
             return Response(data={'error': "No appointments found"}, status=status.HTTP_404_NOT_FOUND)
 
     def post(self, request):
-        doctor_id = request.data.get('doctor_id')
-        user_id = request.data.get('user_id')
-        slot_id = request.data.get('slot_id')
+        doctor = request.data.get('doctor')
+        patient = request.data.get('patient')
+        slot = request.data.get('available_slot')
 
         # Vérifier que les identifiants de médecin, d'utilisateur et de créneau horaire sont valides
         try:
-            doctor = Doctor.objects.get(id=doctor_id)
-            user = User.objects.get(id=user_id)
-            slot = AvailableSlot.objects.get(id=slot_id, doctor=doctor, is_blocked=False)
+            doctor = Doctor.objects.get(id=doctor)
+            patient = Patient.objects.get(id=patient)
+            slot = AvailableSlot.objects.get(id=slot, doctor=doctor, is_blocked=False)
         except Doctor.DoesNotExist:
             return Response(data={'error': 'Le médecin spécifié n\'existe pas.'}, status=status.HTTP_404_NOT_FOUND)
-        except User.DoesNotExist:
+        except Patient.DoesNotExist:
             return Response(data={'error': 'L\'utilisateur spécifié n\'existe pas.'}, status=status.HTTP_404_NOT_FOUND)
         except AvailableSlot.DoesNotExist:
             return Response(data={'error': 'Le créneau horaire spécifié n\'existe pas ou est déjà réservé.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Créer un nouvel Appointment et mettre à jour l'état du créneau horaire
-        serializer = AppointmentSerializer(data=request.data)
-        if serializer.is_valid():
-            appointment = serializer.save(doctor=doctor, user=user, slot=slot)
+        # Bloquer le créneau horaire
+        slot.is_blocked = True
+        slot.save()
 
-            # Mettre à jour l'état du créneau horaire
-            slot.is_blocked = True
-            slot.save()
+        # Créer un nouveau rendez-vous
+        appointment = Appointment.objects.create(
+            patient=patient,
+            doctor=doctor,
+            available_slot=slot
+        )
 
-            return Response(data={'appointment_id': appointment.id}, status=status.HTTP_201_CREATED)
-        else:
-            return Response(data=serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response(data={'success': 'Le rendez-vous a été créé avec succès.'}, status=status.HTTP_201_CREATED)
+
 
     def delete(self, request, *args, **kwargs):
         try:
