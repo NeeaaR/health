@@ -68,6 +68,7 @@ class AvailableSlotSerializer(serializers.ModelSerializer):
 class AppointmentSerializer(serializers.ModelSerializer):
     patient = PatientSerializer()
     doctor = DoctorSerializer()
+    available_slot = AvailableSlotSerializer()
     class Meta:
         model = Appointment
         fields = '__all__'
