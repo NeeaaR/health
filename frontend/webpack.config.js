@@ -16,13 +16,16 @@ module.exports = {
       },
       {
         test: /\.css$/,
-        exclude: /node_modules/,
         use: ["style-loader", "css-loader"],
+      },
+      {
+        test: /\.(png|jpe?g|gif|svg)$/i,
+        type: 'asset/resource',
       },
     ],
   },
   resolve: {
-    extensions: ['', '.js', '.jsx'],
+    extensions: ["", ".js", ".jsx"],
   },
   optimization: {
     minimize: true,
@@ -32,6 +35,9 @@ module.exports = {
       "process.env": {
         NODE_ENV: JSON.stringify("development"),
       },
+    }),
+    new webpack.ProvidePlugin({
+      React: "react",
     }),
   ],
 };

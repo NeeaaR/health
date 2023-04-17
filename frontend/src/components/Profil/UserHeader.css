@@ -1,0 +1,28 @@
+.header-container {
+    position: relative;
+  }
+  
+  .header-container::before,
+  .header-container::after {
+    content: "";
+    position: absolute;
+    top: 100px;
+    bottom: 0;
+    width: 100%;
+    background-image: linear-gradient(
+      to bottom right,
+      rgba(0, 30, 60, 1) 0%,
+      rgba(0, 30, 60, 0) 50%
+    );
+  }
+  
+  .header-container::before {
+    left: 0;
+    transform: skewY(-8deg);
+  }
+  
+  .header-container::after {
+    right: 0;
+    transform: skewY(8deg);
+  }
+  
